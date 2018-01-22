@@ -29,6 +29,13 @@ int sockfd, sock6fd;
 void * inet4srv(void *param);
 void * inet6srv(void *param);
 
+void usage()
+{
+	printf("wimi\n");
+	printf("wimi -p [port]\n");
+}
+
+
 int closesockets(const char* msg, int err)
 {
 	perror(msg);
@@ -44,8 +51,11 @@ int main(int argc, char *argv[])
 	int  n;
 	int ch;
 
-	while ((ch = getopt(argc, argv, "p:")) != -1) {
+	while ((ch = getopt(argc, argv, "hp:")) != -1) {
 		switch (ch) {
+			case 'h':
+				usage();
+				exit(0);
 			case 'p':
 				port = atoi(optarg);
 				if (port < 1 || port > MAXPORT) {
@@ -103,62 +113,59 @@ int main(int argc, char *argv[])
 	return 0;
 }
 
+int writetoclient(int fd, char *clientaddr, int size)
+{
+	int n = 0;
+	write(fd, msg, sizeof(msg));
+	n = write(fd, clientaddr, size);
+	write(fd, "\n", 1);
+	return n;
+}
+
 void * inet4srv(void *param)
 {
-	int n;
-	int newsockfd = 0;
+	int connfd;
 	struct sockaddr_in cli_addr;
+	int cli_addrlen = sizeof(cli_addr);
 	char clientaddr[INET_ADDRSTRLEN];
-	int cliaddrlen;
 	for(;;) {
-		bzero(&cli_addr, sizeof(cli_addr));
-		cliaddrlen = sizeof(cli_addr);
+		bzero(&cli_addr, cli_addrlen);
+		bzero(clientaddr, INET_ADDRSTRLEN);
 
-		if ((newsockfd = accept(sockfd, (struct sockaddr *)&cli_addr, &cliaddrlen)) <= 0) {
+		if ((connfd = accept(sockfd, (struct sockaddr *)&cli_addr, &cli_addrlen)) <= 0) {
 			closesockets("accept() AF_INET", 1);
 		}
 
-		bzero(clientaddr, sizeof(clientaddr));
 		inet_ntop(AF_INET, &cli_addr.sin_addr, clientaddr, INET_ADDRSTRLEN);
 
-		write(newsockfd, msg, sizeof(msg));
-		n = write(newsockfd, clientaddr, INET_ADDRSTRLEN);
-		write(newsockfd, "\n", 1);
-
-		if (n < 0) {
-			perror("write(): ");
-			exit(1);
+		if (writetoclient(connfd, clientaddr, sizeof(clientaddr)) < 1) {
+			perror("writetoclient()");
 		}
-		close(newsockfd);
+
+		close(connfd);
 	}
 }
 
 void * inet6srv(void *param)
 {
-	int n;
-	int newsockfd = 0;
+	int connfd;
 	struct sockaddr_in6 cli_addr;
+	int cli_addrlen = sizeof(cli_addr);
 	char clientaddr[INET6_ADDRSTRLEN];
-	int cliaddrlen;
 	for(;;) {
-		bzero(&cli_addr, sizeof(cli_addr));
-		cliaddrlen = sizeof(cli_addr);
+		bzero(&cli_addr, cli_addrlen);
+		bzero(clientaddr, INET6_ADDRSTRLEN);
 
-		if ((newsockfd = accept(sock6fd, (struct sockaddr *)&cli_addr, &cliaddrlen)) <= 0) {
+		if ((connfd = accept(sock6fd, (struct sockaddr *)&cli_addr, &cli_addrlen)) <= 0) {
 			closesockets("accept() AF_INET6", 1);
 		}
 
-		bzero(clientaddr, INET6_ADDRSTRLEN);
 		inet_ntop(AF_INET6, &cli_addr.sin6_addr, clientaddr, INET6_ADDRSTRLEN);
 
-		write(newsockfd, msg, sizeof(msg));
-		n = write(newsockfd, clientaddr, INET6_ADDRSTRLEN);
-		write(newsockfd, "\n", 1);
-
-		if (n < 0) {
-			perror("write(): ");
-			exit(1);
+		if (writetoclient(connfd, clientaddr, sizeof(clientaddr)) < 1) {
+			perror("writetoclient()");
 		}
-		close(newsockfd);
+
+		close(connfd);
 	}
 }
