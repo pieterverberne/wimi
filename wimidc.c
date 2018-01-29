@@ -38,6 +38,7 @@ void usage()
 
 int closesockets(const char* msg, int err)
 {
+	seteuid(0);
 	perror(msg);
 	close(sockfd);
 	close(sock6fd);
@@ -69,7 +70,7 @@ int main(int argc, char *argv[])
 
 	pthread_t inet4t, inet6t;
 
-	pledge("stdio inet", NULL);
+	pledge("stdio inet id", NULL);
 
 	if ((sockfd = socket(AF_INET, SOCK_STREAM, 0)) == -1) {
 		closesockets("socket() AF_INET", 1);
@@ -101,6 +102,9 @@ int main(int argc, char *argv[])
 
 	if (bind(sock6fd, (struct sockaddr *) &serv_addr6, sizeof(serv_addr6)) < 0) {
 		closesockets("bind() AF_INET6", 1);
+	}
+	if (seteuid(5000) != 0) {
+		closesockets("seteuid()", 1);
 	}
 
 	listen(sockfd, NROFCONN);
